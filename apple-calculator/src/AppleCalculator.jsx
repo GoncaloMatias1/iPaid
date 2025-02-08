@@ -1,5 +1,9 @@
-import React, { useState } from 'react';
-import { Smartphone, Laptop, Watch, Headphones, Monitor, Tablet, Keyboard, Mouse, Desktop, Tv } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { db } from './firebase';
+import { useAuth } from './AuthContext';
+import { Smartphone, Laptop, Watch, Headphones, Tablet, Keyboard, Tv } from 'lucide-react';
 
 const APPLE_PRODUCTS = {
   iPhone: [
@@ -95,19 +99,62 @@ const CategoryIcon = ({ category }) => {
 
 const AppleCalculator = () => {
   const [selectedProducts, setSelectedProducts] = useState([]);
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const totalValue = selectedProducts.reduce((sum, product) => sum + product.price, 0);
 
-  const toggleProduct = (product) => {
-    setSelectedProducts(prev => 
-      prev.some(p => p.name === product.name)
-        ? prev.filter(p => p.name !== product.name)
-        : [...prev, product]
-    );
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    // Load user's selected products when component mounts
+    const loadUserProducts = async () => {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (userDoc.exists()) {
+        setSelectedProducts(userDoc.data().selectedProducts || []);
+      }
+    };
+
+    loadUserProducts();
+  }, [user, navigate]);
+
+  const toggleProduct = async (product) => {
+    const newSelection = selectedProducts.some(p => p.name === product.name)
+      ? selectedProducts.filter(p => p.name !== product.name)
+      : [...selectedProducts, product];
+
+    setSelectedProducts(newSelection);
+
+    // Save to Firebase
+    if (user) {
+      await updateDoc(doc(db, 'users', user.uid), {
+        selectedProducts: newSelection
+      });
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Failed to log out', error);
+    }
   };
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <header className="text-center mb-12">
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+          >
+            Logout
+          </button>
+        </div>
         <h1 className="text-4xl font-bold mb-4">Apple Collection Calculator</h1>
         <p className="text-gray-600">Track the value of your Apple products</p>
       </header>
