@@ -45,4 +45,4 @@ Visit [https://apple-calculator-ten.vercel.app](https://apple-calculator-ten.ver
 
 ## Credits
 
-Created by Gonçalo Matias
+Created by Gonçalo Abreu
